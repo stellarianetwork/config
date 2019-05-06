@@ -1,0 +1,55 @@
+stellaria.network {
+    log / /var/log/caddy/mastodon.log "{combined}" {
+        rotate_age 90
+    }
+    root /home/eai/mastodon/public
+    gzip
+
+    header / {
+        Strict-Transport-Security "max-age=31536000;"
+    }
+
+    header /emoji Cache-Control "public, max-age=31536000, immutable"
+    header /packs Cache-Control "public, max-age=31536000, immutable"
+    header /system/accounts/avatars Cache-Control "public, max-age=31536000, immutable"
+    header /system/media_attachments/files Cache-Control "public, max-age=31536000, immutable"
+
+    errors {
+        * 500.html
+    }
+
+    rewrite {
+    if {path} is /
+    to /proxy{path}
+    }
+
+    rewrite {
+        if {path} not_has /api/v1/streaming
+        to {path} /proxy{path}
+    }
+
+    proxy /proxy localhost:3000 {
+        without /proxy
+        transparent
+        websocket
+    }
+
+    proxy /api/v1/streaming localhost:4000 {
+        transparent
+        websocket
+    }
+
+    # 古いメディアのパスのリダイレクト
+
+    rewrite /system {
+        r  (.*)
+        to /{1}
+    }
+
+    redir {
+        if {path} has /system/
+        https://media.stellaria.network{rewrite_path}
+    }
+
+    tls eai@mizle.net
+}
